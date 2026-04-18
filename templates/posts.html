@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 border-b border-gray-200 dark:border-gray-700 pb-2 transition-colors duration-300">
+  <h1 class="text-2xl font-bold text-primary">Intelligence_Feed</h1>
+  {% if current_user.role in ['user', 'admin'] %}
+    <a href="{{ url_for('new_post') }}" class="bg-primary text-white dark:text-gray-900 text-sm font-bold px-4 py-2 rounded hover:bg-green-500 dark:hover:bg-green-400 transition">+ New Entry</a>
+  {% endif %}
+</div>
+
+{% if not posts %}
+  <p class="text-gray-500 dark:text-gray-400 italic text-center mt-10">No intelligence entries found in the database.</p>
+{% endif %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {% for post in posts %}
+  <article class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5 hover:border-primary dark:hover:border-primary transition group flex flex-col justify-between shadow-sm dark:shadow-md transition-colors duration-300">
+    <div>
+      <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition mb-2">
+        <a href="{{ url_for('view_post', post_id=post.id) }}" class="block">{{ post.title }}</a>
+      </h2>
+      <div class="flex items-center space-x-2 text-xs mb-4">
+        <span class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded transition-colors duration-300">{{ post.visibility | upper }}</span>
+        <span class="text-gray-500">By {{ post.author }}</span>
+      </div>
+    </div>
+    <p class="text-xs text-gray-500 mt-4 border-t border-gray-200 dark:border-gray-700 pt-2 transition-colors duration-300">Updated: {{ post.updated_at }}</p>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

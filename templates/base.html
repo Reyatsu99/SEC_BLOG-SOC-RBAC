@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NetSec Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Configure Tailwind for a "Security Dashboard" aesthetic
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { primary: '#10b981', danger: '#ef4444' } } }
+    }
+
+    // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    function toggleTheme() {
+      if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        localStorage.theme = 'light';
+      } else {
+        document.documentElement.classList.add('dark');
+        localStorage.theme = 'dark';
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen flex flex-col font-mono bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
+  
+  <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-md transition-colors duration-300">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-6">
+        <a href="{{ url_for('list_posts') }}" class="text-xl font-bold text-primary tracking-wider">SEC_BLOG//</a>
+        {% if current_user.id %}
+          <a href="{{ url_for('list_posts') }}" class="hover:text-primary transition {% if request.endpoint and 'post' in request.endpoint and request.endpoint != 'new_post' %}border-b-2 border-primary text-primary{% endif %}">Posts</a>
+          
+          <a href="{{ url_for('chat') }}" class="hover:text-primary transition {% if request.endpoint == 'chat' %}border-b-2 border-primary text-primary{% endif %}">Secure Chat</a>
+          
+          {% if current_user.role in ['user', 'admin'] %}
+            <a href="{{ url_for('new_post') }}" class="hover:text-primary transition {% if request.endpoint == 'new_post' %}border-b-2 border-primary text-primary{% endif %}">Write</a>
+          {% endif %}
+          
+          {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('audit_log') }}" class="text-danger hover:text-red-400 transition {% if request.endpoint == 'audit_log' %}border-b-2 border-danger{% endif %}">Audit Logs</a>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <!-- Theme Toggle Button -->
+        <button onclick="toggleTheme()" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition" title="Toggle Light/Dark Mode">
+          <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+          <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+        </button>
+
+        {% if current_user.id %}
+          <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded border border-gray-300 dark:border-gray-700">
+            <span class="text-xs text-gray-600 dark:text-gray-400">Mode:</span>
+            <select id="securityToggle" class="bg-transparent text-sm font-bold text-primary focus:outline-none">
+              <option value="secure" class="bg-white dark:bg-gray-800 text-primary">SECURE (E2EE)</option>
+              <option value="vulnerable" class="bg-white dark:bg-gray-800 text-danger">VULNERABLE</option>
+            </select>
+          </div>
+
+          <span class="text-sm text-gray-600 dark:text-gray-400">[{{ current_user.username }}]</span>
+          <form method="post" action="{{ url_for('logout') }}" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 py-1 rounded transition">Logout</button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="text-gray-800 dark:text-gray-200 hover:text-primary dark:hover:text-primary">Login</a>
+          <a href="{{ url_for('register') }}" class="bg-primary text-white dark:text-gray-900 px-4 py-2 rounded font-bold hover:bg-green-500 dark:hover:bg-green-400">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-4 mt-4 w-full">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="p-4 mb-4 rounded border {{ 'bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-500 text-green-800 dark:text-green-200' if category == 'success' else 'bg-red-100 dark:bg-red-900 border-red-400 dark:border-red-500 text-red-800 dark:text-red-200' }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-grow">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

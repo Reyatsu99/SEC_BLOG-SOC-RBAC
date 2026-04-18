@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md dark:shadow-lg mt-10 transition-colors duration-300">
+  <h1 class="text-2xl font-bold text-primary mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">Register_</h1>
+  <form method="post" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div>
+      <label class="block text-sm text-gray-700 dark:text-gray-400 mb-1">Username</label>
+      <input name="username" minlength="3" maxlength="30" required class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-2 text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors duration-300">
+    </div>
+    <div>
+      <label class="block text-sm text-gray-700 dark:text-gray-400 mb-1">Password</label>
+      <input name="password" type="password" minlength="10" required class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-2 text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors duration-300">
+    </div>
+    <button type="submit" class="w-full bg-primary text-white dark:text-gray-900 font-bold py-2 rounded hover:bg-green-500 dark:hover:bg-green-400 transition mt-4">Initialize Account</button>
+  </form>
+</div>
+{% endblock %}

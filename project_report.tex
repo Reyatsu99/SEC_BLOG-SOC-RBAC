@@ -1,0 +1,92 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Secure Blogging Platform - Project Report},
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+\title{
+    \textbf{Secure Blogging Platform with CIA Triad Enforcement}\\
+    \large Network Security Project Report
+}
+
+\author{
+    \textbf{Team Members:}\\
+    Harsh Kumar Shrivastava (2025H1030133G)\\
+    Christy George Joseph (2025H1030133G)\\
+    Yash Rajesh Bhavsar (2025H1030131G)\\
+    Kaustubh Dhananjay Das (2025H103XXXXG)\\
+    K Tharian Thomas (2025H1030128)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+This project presents a hardened, full-stack \textbf{Secure Blogging Platform} designed to demonstrate the practical application of the CIA Triad (Confidentiality, Integrity, and Availability) in modern web architectures. Beyond standard CRUD operations, the platform integrates advanced cryptographic controls, granular authorization, and real-time security monitoring.
+
+\section{Security Architecture}
+The application is built using a Flask backend and an SQLite database, secured with multiple layers of defense-in-depth.
+
+\subsection{Authentication and Authorization}
+\begin{itemize}[noitemsep]
+    \item \textbf{Role-Based Access Control (RBAC)}: Implemented with two distinct levels: \textit{User} and \textit{Admin}.
+    \item \textbf{Secure Password Hashing}: Utilizes PBKDF2-SHA256 with per-user salting.
+    \item \textbf{Explicit Access Control}: Users can now grant granular view permissions for private posts to other specific users, solving the "Broken Access Control" vulnerability common in simple platforms.
+    \item \textbf{Brute-Force Protection}: Features automatic IP and username-based lockout, supplemented by a security challenge flow after repeated failures.
+\end{itemize}
+
+\subsection{Confidentiality}
+\begin{itemize}[noitemsep]
+    \item \textbf{End-to-End Encrypted (E2EE) Chat}: A dedicated messaging module using AES-256 (via CryptoJS) ensures that messages are encrypted in the browser and never visible to the server or database in plaintext.
+    \item \textbf{Live Crypto Inspector}: A debug panel in the chat UI allows real-time inspection of plaintext vs. ciphertext, serving as a powerful educational tool for cryptographic principles.
+    \item \textbf{Session Hardening}: Implementation of idle timeouts (configured at 30 mins), absolute session lifetimes (240 mins), and secure cookie flags (HttpOnly, Secure, SameSite).
+    \item \textbf{HTTPS Enforcement}: Mandatory TLS transport to prevent man-in-the-middle (MITM) attacks, supplemented by \textbf{HSTS} (HTTP Strict Transport Security) headers.
+\end{itemize}
+
+\subsection{Defense-in-Depth and Browser Security}
+\begin{itemize}[noitemsep]
+    \item \textbf{Content Security Policy (CSP)}: A robust policy that restricts script and style execution to trusted sources (Self, Tailwind CDN, CryptoJS CDN), mitigating XSS and injection attacks.
+    \item \textbf{Security Headers}: Deployment of \textit{X-Frame-Options}, \textit{X-Content-Type-Options}, and \textit{Permissions-Policy} to harden the application against modern web threats.
+\end{itemize}
+
+\section{Security Demonstration: MITM Attack}
+The project includes a dedicated \textbf{ARP Spoofing Script} (`arp_attack.py`) utilizing the \textit{Scapy} library. This tool allows students to demonstrate a real-world network attack:
+\begin{enumerate}
+    \item \textbf{Vulnerable Stage}: Capturing plaintext chat messages in Wireshark while E2EE is disabled.
+    \item \textbf{Secure Stage}: Showing how the E2EE module renders the captured traffic useless to an attacker even when they successfully intercept the packets.
+\end{enumerate}
+
+\section{Modern User Interface}
+To enhance the demonstration capability, the platform features a modern \textbf{Security Dashboard} aesthetic powered by \textbf{Tailwind CSS}.
+\begin{itemize}
+    \item \textbf{Dynamic Theme Engine}: A Light/Dark mode toggle (Sun/Moon icon) allows users to switch between a crisp light theme and a "hacker-style" dark theme.
+    \item \textbf{Educational Tooltips}: Interactive tooltips on the post verification badges explain the underlying security principles of \textit{Integrity} and \textit{Non-Repudiation}.
+\end{itemize}
+
+\section{Conclusion}
+This Secure Blogging Platform serves as a comprehensive prototype for secure application development. By combining traditional security measures with modern cryptographic enhancements like E2EE and RSA signatures, it addresses the most critical gaps found in current market solutions.
+
+\end{document}
