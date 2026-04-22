@@ -9,7 +9,7 @@
     <ul>
       {% for user in users %}
         <li class="mb-2">
-          <button onclick="selectUser({{ user.id }}, '{{ user.username }}')" class="w-full text-left p-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+          <button onclick="selectUser({{ user.id }}, '{{ user.username }}', '{{ user.chat_key }}')" class="w-full text-left p-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded border border-gray-200 dark:border-gray-700 transition-colors duration-300">
             > {{ user.username }}
           </button>
         </li>
@@ -42,17 +42,19 @@
 
 <script>
   let currentTargetId = null;
-  const SHARED_SECRET = "NetworkSecurityProject2026_Key"; 
+  let currentChatKey = null;
+  const CSRF_TOKEN = "{{ csrf_token }}";
   
-  function selectUser(userId, username) {
+  function selectUser(userId, username, chatKey) {
     currentTargetId = userId;
+    currentChatKey = chatKey;
     document.getElementById('chatHeader').innerText = `Encrypted Channel: ${username}`;
     document.getElementById('messageInput').disabled = false;
     document.getElementById('sendBtn').disabled = false;
     fetchMessages();
     // Use an interval ID so we don't pile up intervals
     if(window.chatInterval) clearInterval(window.chatInterval);
-    window.chatInterval = setInterval(fetchMessages, 3000); 
+    window.chatInterval = setInterval(fetchMessages, 5000); 
   }
 
   function getMode() {
@@ -77,14 +79,14 @@
   async function sendMessage() {
     const input = document.getElementById('messageInput');
     const rawText = input.value.trim();
-    if (!rawText || !currentTargetId) return;
+    if (!rawText || !currentTargetId || !currentChatKey) return;
 
     const mode = getMode();
     let payloadContent = rawText;
     let isEncrypted = 0;
 
     if (mode === 'secure') {
-      payloadContent = CryptoJS.AES.encrypt(rawText, SHARED_SECRET).toString();
+      payloadContent = CryptoJS.AES.encrypt(rawText, currentChatKey).toString();
       isEncrypted = 1;
       
       // Update Inspector UI
@@ -97,7 +99,10 @@
 
     await fetch('/api/messages/send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': CSRF_TOKEN
+      },
       body: JSON.stringify({
         receiver_id: currentTargetId,
         content: payloadContent,
@@ -122,9 +127,9 @@
       let displayText = msg.content;
       let securityWarning = '';
 
-      if (msg.is_encrypted && mode === 'secure') {
+      if (msg.is_encrypted && mode === 'secure' && currentChatKey) {
         try {
-          const bytes = CryptoJS.AES.decrypt(msg.content, SHARED_SECRET);
+          const bytes = CryptoJS.AES.decrypt(msg.content, currentChatKey);
           displayText = bytes.toString(CryptoJS.enc.Utf8);
         } catch(e) {
           displayText = "[Decryption Failed]";

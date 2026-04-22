@@ -448,11 +448,30 @@ def create_app() -> Flask:
     def chat() -> str:
         db = get_db()
         users = db.execute("SELECT id, username FROM users WHERE id != ?", (session["user_id"],)).fetchall()
-        return render_template("chat.html", users=users)
+        
+        # Pre-generate conversation keys for each user
+        user_list = []
+        for u in users:
+            pair = sorted([int(session["user_id"]), int(u["id"])])
+            pair_str = f"{pair[0]}:{pair[1]}"
+            chat_key = hmac.new(
+                app.config["SECRET_KEY"].encode(), 
+                pair_str.encode(), 
+                hashlib.sha256
+            ).hexdigest()
+            
+            user_list.append({
+                "id": u["id"],
+                "username": u["username"],
+                "chat_key": chat_key
+            })
+            
+        return render_template("chat.html", users=user_list)
 
     @app.route("/api/messages/send", methods=["POST"])
     @login_required
     def api_send_message():
+        validate_csrf_or_400()
         data = request.get_json()
         receiver_id = data.get("receiver_id")
         content = data.get("content")
@@ -504,18 +523,20 @@ def create_app() -> Flask:
 
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=20)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
         g.db = conn
     return g.db
 
 
 def init_db() -> None:
     ensure_signing_keys()
-    db = sqlite3.connect(DB_PATH)
+    db = sqlite3.connect(DB_PATH, timeout=20)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys = ON")
+    db.execute("PRAGMA journal_mode = WAL")
     db.executescript(
         """
         CREATE TABLE IF NOT EXISTS users (
@@ -741,7 +762,7 @@ def rotate_csrf_token() -> None:
 
 
 def validate_csrf_or_400() -> None:
-    token = request.form.get("csrf_token")
+    token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
     if not token or token != session.get("csrf_token"):
         abort(400, "Invalid CSRF token")
 
@@ -987,4 +1008,4 @@ if __name__ == "__main__":
     ssl_key = os.environ.get("SSL_KEY")
     ssl_context = (ssl_cert, ssl_key) if ssl_cert and ssl_key else None
     port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=True, ssl_context=ssl_context)
+    app.run(host="0.0.0.0", port=port, debug=True, ssl_context=ssl_context, threaded=True)
