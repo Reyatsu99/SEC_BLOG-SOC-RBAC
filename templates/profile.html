@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto space-y-6">
+
+  <!-- User Info Card -->
+  <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md dark:shadow-lg transition-colors duration-300">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-4">
+        <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
+          {{ user.username[0] | upper }}
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ user.username }}</h1>
+          <div class="flex items-center space-x-2 mt-1">
+            {% if user.role == 'admin' %}
+              <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">ADMIN</span>
+            {% else %}
+              <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">USER</span>
+            {% endif %}
+            <span class="text-xs text-gray-500 dark:text-gray-400" title="{{ user.created_at }}">Member since {{ user.created_at | humantime }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center transition-colors duration-300">
+        <div class="text-2xl font-bold text-primary">{{ post_count }}</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Posts</div>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center transition-colors duration-300">
+        <div class="text-2xl font-bold text-blue-500">{{ msg_count }}</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Messages Sent</div>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center transition-colors duration-300">
+        <div class="text-sm font-bold text-gray-700 dark:text-gray-300" title="{{ last_login.created_at if last_login else 'N/A' }}">
+          {{ last_login.created_at | humantime if last_login else 'N/A' }}
+        </div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Last Login</div>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center transition-colors duration-300">
+        {% if last_post %}
+          <div class="text-sm font-bold text-gray-700 dark:text-gray-300 truncate" title="{{ last_post.title }}">
+            <a href="{{ url_for('view_post', post_id=last_post.id) }}" class="hover:text-primary transition">{{ last_post.title[:20] }}{% if last_post.title|length > 20 %}…{% endif %}</a>
+          </div>
+        {% else %}
+          <div class="text-sm font-bold text-gray-400">None</div>
+        {% endif %}
+        <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Latest Post</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md dark:shadow-lg transition-colors duration-300">
+    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+      <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Recent Activity
+      </h2>
+    </div>
+
+    {% if recent_activity %}
+    <div class="divide-y divide-gray-100 dark:divide-gray-700/50">
+      {% for event in recent_activity %}
+      <div class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors duration-200">
+        <div class="flex items-center space-x-3">
+          {% set is_danger = 'fail' in event.action or 'delete' in event.action %}
+          {% set is_success = 'login' in event.action or 'register' in event.action or 'create' in event.action %}
+          <span class="w-2 h-2 rounded-full flex-shrink-0
+            {% if is_danger %}bg-red-500
+            {% elif is_success %}bg-green-500
+            {% else %}bg-blue-500{% endif %}
+          "></span>
+          <div>
+            <span class="font-mono text-xs px-2 py-0.5 rounded-full
+              {% if is_danger %}bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400
+              {% elif is_success %}bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400
+              {% else %}bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400{% endif %}
+            ">{{ event.action }}</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400 ml-2">{{ event.target_type }} #{{ event.target_id }}</span>
+            {% if event.details %}
+              <span class="text-xs text-gray-400 dark:text-gray-500 ml-1">· {{ event.details }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <span class="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap" title="{{ event.created_at }}">{{ event.created_at | humantime }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-8 text-center text-gray-400 dark:text-gray-500 text-sm">
+      No activity recorded yet.
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

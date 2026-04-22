@@ -494,7 +494,7 @@ def create_app() -> Flask:
         db = get_db()
         messages = db.execute(
             """
-            SELECT m.content, m.is_encrypted, m.created_at, u_sender.username as sender
+            SELECT m.id, m.content, m.is_encrypted, m.created_at, m.read_at, u_sender.username as sender
             FROM messages m
             JOIN users u_sender ON m.sender_id = u_sender.id
             WHERE (m.sender_id = ? AND m.receiver_id = ?) 
@@ -504,7 +504,123 @@ def create_app() -> Flask:
             (session["user_id"], other_user_id, other_user_id, session["user_id"])
         ).fetchall()
         
+        # Mark unread messages from the other user as read
+        db.execute(
+            "UPDATE messages SET read_at = ? WHERE sender_id = ? AND receiver_id = ? AND read_at IS NULL",
+            (now_utc(), other_user_id, session["user_id"])
+        )
+        db.commit()
+        
         return {"messages": [dict(m) for m in messages]}
+
+    @app.route("/api/typing", methods=["POST"])
+    @login_required
+    def api_typing():
+        data = request.get_json()
+        receiver_id = data.get("receiver_id")
+        if not receiver_id:
+            return {"error": "Missing receiver_id"}, 400
+        db = get_db()
+        db.execute(
+            "INSERT OR REPLACE INTO typing_status (user_id, receiver_id, updated_at) VALUES (?, ?, ?)",
+            (session["user_id"], receiver_id, now_utc())
+        )
+        db.commit()
+        return {"status": "ok"}
+
+    @app.route("/api/typing/<int:other_user_id>")
+    @login_required
+    def api_typing_status(other_user_id: int):
+        db = get_db()
+        cutoff = (datetime.now(timezone.utc) - timedelta(seconds=4)).isoformat()
+        row = db.execute(
+            "SELECT 1 FROM typing_status WHERE user_id = ? AND receiver_id = ? AND updated_at > ?",
+            (other_user_id, session["user_id"], cutoff)
+        ).fetchone()
+        return {"typing": row is not None}
+
+    # ── Admin User Management ──
+    @app.route("/admin/users")
+    @role_required("admin")
+    def admin_users():
+        db = get_db()
+        users = db.execute(
+            """
+            SELECT u.id, u.username, u.role, u.created_at,
+                   (SELECT COUNT(*) FROM posts WHERE author_id = u.id) AS post_count,
+                   (SELECT COUNT(*) FROM messages WHERE sender_id = u.id) AS msg_count
+            FROM users u ORDER BY u.created_at DESC
+            """
+        ).fetchall()
+        return render_template("admin_users.html", users=users)
+
+    @app.route("/admin/users/<int:user_id>/role", methods=["POST"])
+    @role_required("admin")
+    def admin_change_role(user_id: int):
+        validate_csrf_or_400()
+        if user_id == session["user_id"]:
+            flash("You cannot change your own role.", "error")
+            return redirect(url_for("admin_users"))
+        db = get_db()
+        user = db.execute("SELECT id, role FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not user:
+            abort(404)
+        new_role = "admin" if user["role"] == "user" else "user"
+        db.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
+        db.commit()
+        log_event(session["user_id"], "admin.role_change", "user", user_id, f"role={new_role}")
+        flash(f"User role updated to {new_role}.", "success")
+        return redirect(url_for("admin_users"))
+
+    @app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
+    @role_required("admin")
+    def admin_delete_user(user_id: int):
+        validate_csrf_or_400()
+        if user_id == session["user_id"]:
+            flash("You cannot delete your own account.", "error")
+            return redirect(url_for("admin_users"))
+        db = get_db()
+        user = db.execute("SELECT id, username FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not user:
+            abort(404)
+        db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        db.commit()
+        log_event(session["user_id"], "admin.user_delete", "user", user_id, f"username={user['username']}")
+        flash(f"User '{user['username']}' deleted.", "success")
+        return redirect(url_for("admin_users"))
+
+    # ── User Profile ──
+    @app.route("/profile")
+    @login_required
+    def profile():
+        db = get_db()
+        user_id = session["user_id"]
+        user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not user:
+            abort(404)
+        post_count = db.execute("SELECT COUNT(*) FROM posts WHERE author_id = ?", (user_id,)).fetchone()[0]
+        msg_count = db.execute("SELECT COUNT(*) FROM messages WHERE sender_id = ?", (user_id,)).fetchone()[0]
+        last_login = db.execute(
+            "SELECT created_at FROM audit_logs WHERE user_id = ? AND action = 'user.login' ORDER BY created_at DESC LIMIT 1",
+            (user_id,)
+        ).fetchone()
+        last_post = db.execute(
+            "SELECT id, title, created_at FROM posts WHERE author_id = ? ORDER BY created_at DESC LIMIT 1",
+            (user_id,)
+        ).fetchone()
+        recent_activity = db.execute(
+            "SELECT action, target_type, target_id, details, created_at FROM audit_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 10",
+            (user_id,)
+        ).fetchall()
+
+        return render_template("profile.html",
+            user=user,
+            post_count=post_count,
+            msg_count=msg_count,
+            last_login=last_login,
+            last_post=last_post,
+            recent_activity=recent_activity
+        )
 
     @app.context_processor
     def inject_user() -> dict[str, Any]:
@@ -652,6 +768,18 @@ def init_db() -> None:
     )
     ensure_column(db, "posts", "content_signature", "TEXT")
     ensure_column(db, "post_versions", "content_signature", "TEXT")
+    ensure_column(db, "messages", "read_at", "TEXT")
+    
+    # Typing status table
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS typing_status (
+            user_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, receiver_id)
+        )
+    """)
+
     backfill_missing_signatures(db)
 
     try:
