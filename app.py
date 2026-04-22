@@ -298,7 +298,7 @@ def create_app() -> Flask:
     @login_required
     def edit_post(post_id: int) -> str:
         post = fetch_post_or_404(post_id)
-        require_post_write_access(post)
+        require_post_edit_access(post)
         db = get_db()
 
         if request.method == "POST":
@@ -355,7 +355,7 @@ def create_app() -> Flask:
     def delete_post(post_id: int) -> str:
         validate_csrf_or_400()
         post = fetch_post_or_404(post_id)
-        require_post_write_access(post)
+        require_post_delete_access(post)
 
         db = get_db()
         db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
@@ -368,7 +368,7 @@ def create_app() -> Flask:
     @login_required
     def post_history(post_id: int) -> str:
         post = fetch_post_or_404(post_id)
-        require_post_write_access(post)
+        require_post_edit_access(post)
 
         versions = get_db().execute(
             """
@@ -686,12 +686,19 @@ def require_post_read_access(post: sqlite3.Row) -> None:
     abort(403)
 
 
-def require_post_write_access(post: sqlite3.Row) -> None:
+def require_post_edit_access(post: sqlite3.Row) -> None:
+    user_id = int(session["user_id"])
+    if int(post["author_id"]) == user_id:
+        return
+    abort(403)
+
+
+def require_post_delete_access(post: sqlite3.Row) -> None:
     user_id = int(session["user_id"])
     role = session["role"]
     if role == "admin":
         return
-    if role == "user" and int(post["author_id"]) == user_id:
+    if int(post["author_id"]) == user_id:
         return
     abort(403)
 
