@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-6xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md dark:shadow-lg transition-colors duration-300">
+  <h1 class="text-xl font-bold text-primary mb-6 border-b border-gray-200 dark:border-gray-700 pb-2 transition-colors duration-300">Cryptographic Version History: <span class="text-gray-600 dark:text-gray-300">{{ post.title }}</span></h1>
+  
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm text-gray-600 dark:text-gray-400">
+      <thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
+        <tr>
+          <th scope="col" class="px-4 py-3">v#</th>
+          <th scope="col" class="px-4 py-3">Editor</th>
+          <th scope="col" class="px-4 py-3">SHA-256 Content Hash</th>
+          <th scope="col" class="px-4 py-3">RSA Signature (Truncated)</th>
+          <th scope="col" class="px-4 py-3">Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in versions %}
+        <tr class="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-300">
+          <td class="px-4 py-3 font-bold text-gray-900 dark:text-gray-200">{{ v.version_no }}</td>
+          <td class="px-4 py-3">{{ v.editor }}</td>
+          <td class="px-4 py-3 font-mono text-xs text-primary max-w-[200px] truncate" title="{{ v.content_hash }}">{{ v.content_hash }}</td>
+          <td class="px-4 py-3 font-mono text-xs max-w-[200px] truncate" title="{{ v.content_signature }}">{{ v.content_signature }}</td>
+          <td class="px-4 py-3 text-xs" title="{{ v.edited_at }}">{{ v.edited_at | humantime }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

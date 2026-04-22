@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block content %}
+<article class="max-w-4xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 shadow-md dark:shadow-lg transition-colors duration-300">
+  <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6 transition-colors duration-300">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{{ post.title }}</h1>
+    <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+      <span>Author: <span class="text-primary">{{ post.author }}</span></span>
+      <span>|</span>
+      <span class="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-xs transition-colors duration-300">{{ post.visibility | upper }}</span>
+      <span>|</span>
+      <span title="{{ post.updated_at }}">Updated: {{ post.updated_at | humantime }}</span>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-4 mb-8">
+    {% if integrity_ok %}
+      <div class="group relative flex items-center space-x-2 bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-500 text-green-700 dark:text-green-400 px-3 py-1 rounded text-sm cursor-help transition-colors duration-300">
+        <span>✓ SHA-256 Integrity Verified</span>
+        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-64 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-xs rounded shadow-lg z-10">
+          <strong>Integrity Principle:</strong> Cryptographically guarantees this payload has not been tampered with during transmission or rest.
+        </div>
+      </div>
+    {% else %}
+      <div class="flex items-center space-x-2 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-500 text-red-700 dark:text-red-400 px-3 py-1 rounded text-sm transition-colors duration-300">
+        <span>⚠ Integrity Check Failed</span>
+      </div>
+    {% endif %}
+    
+    {% if signature_ok %}
+      <div class="group relative flex items-center space-x-2 bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-500 text-green-700 dark:text-green-400 px-3 py-1 rounded text-sm cursor-help transition-colors duration-300">
+        <span>✓ RSA Signature Valid</span>
+        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-64 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-xs rounded shadow-lg z-10">
+          <strong>Non-Repudiation & Authentication:</strong> Verifies the sender's identity using asymmetric cryptography. The author cannot deny publishing this.
+        </div>
+      </div>
+    {% else %}
+       <div class="flex items-center space-x-2 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-500 text-red-700 dark:text-red-400 px-3 py-1 rounded text-sm transition-colors duration-300">
+        <span>⚠ Signature Invalid</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <pre class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-6 rounded-lg text-gray-800 dark:text-gray-300 whitespace-pre-wrap font-mono text-sm leading-relaxed mb-8 transition-colors duration-300">{{ post.content }}</pre>
+
+  <div class="flex space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
+    {% if current_user.id == post.author_id %}
+      <a href="{{ url_for('edit_post', post_id=post.id) }}" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold transition">Edit</a>
+      <a href="{{ url_for('post_history', post_id=post.id) }}" class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white px-4 py-2 rounded text-sm font-bold transition">View History</a>
+    {% endif %}
+    
+    {% if current_user.role == 'admin' or current_user.id == post.author_id %}
+      <form method="post" action="{{ url_for('delete_post', post_id=post.id) }}" class="inline" onsubmit="return confirm('Initiate destructive deletion of this entry?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm font-bold transition">Delete</button>
+      </form>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

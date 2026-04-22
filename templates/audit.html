@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- ─── DASHBOARD HEADER ─── -->
+<div class="mb-6">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-danger flex items-center gap-2">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+        Security_Operations_Center
+      </h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time security event monitoring and incident analysis</p>
+    </div>
+    <span class="bg-red-50 dark:bg-red-900/30 text-danger border border-red-300 dark:border-red-700 text-xs font-bold px-3 py-1.5 rounded-full tracking-wider animate-pulse">
+      ● LIVE MONITORING
+    </span>
+  </div>
+
+  <!-- ─── STATS CARDS ─── -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <!-- Total Events -->
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+          <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+        </div>
+        <span class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Events</span>
+      </div>
+      <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ total_events }}</p>
+    </div>
+
+    <!-- Failed Logins -->
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg">
+          <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+        </div>
+        <span class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Failed Logins</span>
+      </div>
+      <p class="text-3xl font-bold text-danger">{{ failed_logins }}</p>
+    </div>
+
+    <!-- Unique IPs -->
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
+          <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+        </div>
+        <span class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unique IPs</span>
+      </div>
+      <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ unique_ips }}</p>
+    </div>
+
+    <!-- Registered Users -->
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="p-2 bg-green-100 dark:bg-green-900/40 rounded-lg">
+          <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        </div>
+        <span class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Users</span>
+      </div>
+      <p class="text-3xl font-bold text-primary">{{ total_users }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── LOG TABLE ─── -->
+<div class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md dark:shadow-lg transition-colors duration-300">
+  
+  <!-- Toolbar -->
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700">
+    <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+      Event Stream
+      <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">{{ logs|length }} shown</span>
+    </h2>
+
+    <div class="flex items-center gap-3">
+      <!-- Action filter dropdown -->
+      <form method="get" action="{{ url_for('audit_log') }}" class="flex items-center gap-2">
+        <label class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter:</label>
+        <select name="action" onchange="this.form.submit()" class="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors duration-300">
+          <option value="">All Events</option>
+          {% for at in action_types %}
+            <option value="{{ at }}" {% if current_filter == at %}selected{% endif %}>{{ at }}</option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <!-- Search box -->
+      <div class="relative">
+        <input type="text" id="logSearch" placeholder="Search logs..." class="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded pl-8 pr-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors duration-300 w-48">
+        <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      </div>
+    </div>
+  </div>
+  
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm" id="auditTable">
+      <thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
+        <tr>
+          <th scope="col" class="px-4 py-3">Timestamp</th>
+          <th scope="col" class="px-4 py-3">Actor</th>
+          <th scope="col" class="px-4 py-3">Event</th>
+          <th scope="col" class="px-4 py-3">Target</th>
+          <th scope="col" class="px-4 py-3">Details</th>
+          <th scope="col" class="px-4 py-3">Source IP</th>
+          <th scope="col" class="px-4 py-3">Severity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        {% set is_danger = 'fail' in log.action or 'delete' in log.action or 'lockout' in log.action %}
+        {% set is_warn = 'login' in log.action and 'fail' not in log.action %}
+        {% set is_info = not is_danger and not is_warn %}
+        <tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors duration-200 log-row
+          {% if is_danger %}bg-red-50/50 dark:bg-red-900/10{% endif %}">
+          <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono" title="{{ log.created_at }}">{{ log.created_at | humantime }}</td>
+          <td class="px-4 py-3 font-bold {% if log.actor %}text-gray-900 dark:text-gray-200{% else %}text-danger{% endif %}">{{ log.actor or 'SYSTEM' }}</td>
+          <td class="px-4 py-3">
+            <span class="font-mono text-xs px-2 py-1 rounded-full
+              {% if is_danger %}bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400
+              {% elif is_warn %}bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400
+              {% else %}bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400{% endif %}">
+              {{ log.action }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ log.target_type }} <span class="text-gray-400 dark:text-gray-500">#{{ log.target_id }}</span></td>
+          <td class="px-4 py-3 max-w-xs truncate text-gray-600 dark:text-gray-400" title="{{ log.details }}">{{ log.details }}</td>
+          <td class="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{{ log.ip }}</td>
+          <td class="px-4 py-3">
+            {% if is_danger %}
+              <span class="inline-flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400">
+                <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> HIGH
+              </span>
+            {% elif is_warn %}
+              <span class="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+                <span class="w-2 h-2 bg-amber-500 rounded-full"></span> MED
+              </span>
+            {% else %}
+              <span class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400">
+                <span class="w-2 h-2 bg-blue-500 rounded-full"></span> LOW
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if not logs %}
+  <div class="text-center py-12 text-gray-400 dark:text-gray-500">
+    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+    <p class="text-sm">No security events recorded{% if current_filter %} matching "{{ current_filter }}"{% endif %}.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─── CLIENT SEARCH SCRIPT ─── -->
+<script>
+  document.getElementById('logSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.log-row').forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+</script>
+
+{% endblock %}

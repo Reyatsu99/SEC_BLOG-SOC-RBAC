@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.db
+keys/
+certs/
+NS_Project_Final.zip
+.DS_Store

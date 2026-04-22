@@ -1,0 +1,518 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="grid grid-cols-3 gap-6 h-[600px]">
+  
+  <div class="col-span-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-y-auto shadow-sm dark:shadow-md transition-colors duration-300">
+    <h2 class="text-lg font-bold text-primary mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">Active Targets</h2>
+    <ul>
+      {% for user in users %}
+        <li class="mb-2">
+          <button onclick="selectUser({{ user.id }}, '{{ user.username }}')" class="w-full text-left p-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+            > {{ user.username }}
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="col-span-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex flex-col relative shadow-sm dark:shadow-md transition-colors duration-300">
+    
+    <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-between items-center rounded-t-lg transition-colors duration-300">
+      <div>
+        <h2 id="chatHeader" class="text-lg font-bold text-gray-500 dark:text-gray-400">Select a user to begin...</h2>
+        <div id="typingIndicator" class="hidden text-xs text-primary italic mt-0.5">
+          <span class="inline-flex items-center gap-1">
+            <span class="flex space-x-0.5">
+              <span class="w-1 h-1 bg-primary rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+              <span class="w-1 h-1 bg-primary rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+              <span class="w-1 h-1 bg-primary rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+            </span>
+            <span id="typingText">typing...</span>
+          </span>
+        </div>
+      </div>
+      <div id="encryptionBadge" class="hidden px-2 py-1 text-xs font-bold rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 border border-green-400 dark:border-green-500">AES-256 ENCRYPTED</div>
+    </div>
+
+    <div id="fingerprintPanel" class="hidden border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3">
+      <div id="fingerprintWarning" class="hidden mb-2 text-xs font-bold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded px-3 py-2">
+        Recipient key changed since last time. This could indicate a man-in-the-middle attack or a key reset. Verify fingerprints out-of-band.
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] font-mono">
+        <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2">
+          <div class="text-gray-500 dark:text-gray-400 font-bold mb-1">Your key fingerprint</div>
+          <div id="myFp" class="break-all text-primary"></div>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2">
+          <div class="text-gray-500 dark:text-gray-400 font-bold mb-1">Recipient fingerprint</div>
+          <div id="theirFp" class="break-all text-primary"></div>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2">
+          <div class="text-gray-500 dark:text-gray-400 font-bold mb-1">Safety number</div>
+          <div id="safetyNumber" class="break-all text-primary"></div>
+          <div class="text-[10px] text-gray-500 dark:text-gray-400 mt-1">Compare this number with the other person (call/QR/chat in-person).</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="messagesArea" class="flex-grow p-4 overflow-y-auto space-y-4">
+      </div>
+
+    <div id="cryptoInspector" class="hidden bg-black border-t border-gray-700 p-3 font-mono text-[10px] text-green-500 overflow-hidden">
+      <div class="text-gray-400 mb-1 border-b border-gray-800 pb-1 font-bold">LIVE CRYPTOGRAPHIC PAYLOAD INSPECTOR</div>
+      <div>> Plaintext: <span id="debugPlain" class="text-white"></span></div>
+      <div>> AES-256 Ciphertext: <span id="debugCipher" class="text-yellow-400 break-all"></span></div>
+    </div>
+
+    <div class="p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 rounded-b-lg flex space-x-2 transition-colors duration-300">
+      <input type="text" id="messageInput" class="flex-grow bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded p-2 text-gray-900 dark:text-white focus:outline-none focus:border-primary disabled:opacity-50 transition-colors duration-300" placeholder="Type a message..." disabled onkeydown="if(event.key==='Enter')sendMessage()">
+      <button onclick="sendMessage()" id="sendBtn" class="bg-primary text-white dark:text-gray-900 font-bold px-6 py-2 rounded hover:bg-green-500 dark:hover:bg-green-400 disabled:opacity-50 transition" disabled>SEND</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentTargetId = null;
+  let currentTargetName = null;
+  let typingTimer = null;
+  const CSRF_TOKEN = "{{ csrf_token }}";
+  const MY_USERNAME = "{{ current_user.username }}";
+  const MY_USER_ID = {{ current_user.id }};
+
+  const KEY_TYPE = "ecdh-p256";
+  const LS_PRIV = "e2ee_ecdh_p256_priv_jwk_v1";
+  const LS_PUB = "e2ee_ecdh_p256_pub_jwk_v1";
+  const LS_FPS = "e2ee_recipient_fps_v1";
+
+  // Cache imported public keys by user id
+  const otherPubKeyCache = new Map();
+
+  function hex(bytes) {
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function groupBlocks(str, blockSize = 4, blockCount = 12) {
+    const clean = str.replace(/\s+/g, '');
+    const blocks = [];
+    for (let i = 0; i < Math.min(clean.length, blockSize * blockCount); i += blockSize) {
+      blocks.push(clean.slice(i, i + blockSize));
+    }
+    return blocks.join(' ');
+  }
+
+  function b64encode(bytes) {
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  function b64decode(b64) {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  function utf8ToBytes(str) {
+    return new TextEncoder().encode(str);
+  }
+
+  function bytesToUtf8(bytes) {
+    return new TextDecoder().decode(bytes);
+  }
+
+  function stableJwkString(jwkObj) {
+    // Deterministic JSON encoding for hashing/fingerprints.
+    const ordered = {};
+    Object.keys(jwkObj).sort().forEach(k => { ordered[k] = jwkObj[k]; });
+    return JSON.stringify(ordered);
+  }
+
+  async function sha256HexOfString(str) {
+    const dig = await crypto.subtle.digest("SHA-256", utf8ToBytes(str));
+    return hex(new Uint8Array(dig));
+  }
+
+  async function publicKeyFingerprintFromJwkString(pubJwkStr) {
+    const jwkObj = JSON.parse(pubJwkStr);
+    const fpHex = await sha256HexOfString(stableJwkString(jwkObj));
+    return groupBlocks(fpHex, 4, 16);
+  }
+
+  async function safetyNumber(myPubJwkStr, theirPubJwkStr) {
+    // Order-independent safety number: hash(sorted(fingerprintA,fingerprintB))
+    const a = await publicKeyFingerprintFromJwkString(myPubJwkStr);
+    const b = await publicKeyFingerprintFromJwkString(theirPubJwkStr);
+    const pair = [a, b].sort().join("|");
+    const snHex = await sha256HexOfString(pair);
+    return groupBlocks(snHex, 4, 12);
+  }
+
+  function getStoredRecipientFps() {
+    try { return JSON.parse(localStorage.getItem(LS_FPS) || "{}"); }
+    catch { return {}; }
+  }
+
+  function setStoredRecipientFp(userId, fp) {
+    const all = getStoredRecipientFps();
+    all[String(userId)] = fp;
+    localStorage.setItem(LS_FPS, JSON.stringify(all));
+  }
+
+  function getStoredRecipientFp(userId) {
+    const all = getStoredRecipientFps();
+    return all[String(userId)] || null;
+  }
+
+  async function ensureMyKeypairAndRegister() {
+    if (!window.crypto?.subtle) {
+      throw new Error("WebCrypto not available (need HTTPS or localhost).");
+    }
+
+    let privJwk = localStorage.getItem(LS_PRIV);
+    let pubJwk = localStorage.getItem(LS_PUB);
+
+    if (!privJwk || !pubJwk) {
+      const keyPair = await crypto.subtle.generateKey(
+        { name: "ECDH", namedCurve: "P-256" },
+        true,
+        ["deriveBits"]
+      );
+      const exportedPriv = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+      const exportedPub = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+      privJwk = JSON.stringify(exportedPriv);
+      pubJwk = JSON.stringify(exportedPub);
+      localStorage.setItem(LS_PRIV, privJwk);
+      localStorage.setItem(LS_PUB, pubJwk);
+    }
+
+    await fetch("/api/keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+      body: JSON.stringify({
+        key_type: KEY_TYPE,
+        public_key_jwk: pubJwk
+      })
+    });
+  }
+
+  async function refreshFingerprintPanel(otherUserId) {
+    const panel = document.getElementById("fingerprintPanel");
+    const warn = document.getElementById("fingerprintWarning");
+    const myFpEl = document.getElementById("myFp");
+    const theirFpEl = document.getElementById("theirFp");
+    const safetyEl = document.getElementById("safetyNumber");
+
+    const myPubJwkStr = localStorage.getItem(LS_PUB);
+    if (!myPubJwkStr) return;
+
+    const theirResp = await fetch(`/api/keys/${otherUserId}`);
+    if (!theirResp.ok) {
+      panel.classList.add("hidden");
+      return;
+    }
+    const theirData = await theirResp.json();
+    const theirPubJwkStr = theirData.public_key_jwk;
+
+    const myFp = await publicKeyFingerprintFromJwkString(myPubJwkStr);
+    const theirFp = await publicKeyFingerprintFromJwkString(theirPubJwkStr);
+    const sn = await safetyNumber(myPubJwkStr, theirPubJwkStr);
+
+    myFpEl.textContent = myFp;
+    theirFpEl.textContent = theirFp;
+    safetyEl.textContent = sn;
+    panel.classList.remove("hidden");
+
+    const prev = getStoredRecipientFp(otherUserId);
+    if (prev && prev !== theirFp) warn.classList.remove("hidden");
+    else warn.classList.add("hidden");
+    setStoredRecipientFp(otherUserId, theirFp);
+  }
+
+  async function importMyPrivateKey() {
+    const privJwkStr = localStorage.getItem(LS_PRIV);
+    if (!privJwkStr) throw new Error("Missing local private key.");
+    const privJwk = JSON.parse(privJwkStr);
+    return await crypto.subtle.importKey(
+      "jwk",
+      privJwk,
+      { name: "ECDH", namedCurve: "P-256" },
+      false,
+      ["deriveBits"]
+    );
+  }
+
+  async function getOtherUserPublicKey(otherUserId) {
+    if (otherPubKeyCache.has(otherUserId)) return otherPubKeyCache.get(otherUserId);
+
+    const resp = await fetch(`/api/keys/${otherUserId}`);
+    if (!resp.ok) throw new Error("Recipient has not registered a public key.");
+    const data = await resp.json();
+    const pubJwk = JSON.parse(data.public_key_jwk);
+    const pubKey = await crypto.subtle.importKey(
+      "jwk",
+      pubJwk,
+      { name: "ECDH", namedCurve: "P-256" },
+      false,
+      []
+    );
+    otherPubKeyCache.set(otherUserId, pubKey);
+    return pubKey;
+  }
+
+  function hkdfInfoForPair(a, b) {
+    // Bind context into the KDF to avoid key reuse across different pairs.
+    const pair = [Number(a), Number(b)].sort((x, y) => x - y);
+    return utf8ToBytes(`SEC_BLOG_CHAT_E2EE_v1|pair=${pair[0]}:${pair[1]}`);
+  }
+
+  async function deriveAesKeyForMessage(peerUserId, saltBytes) {
+    const myPriv = await importMyPrivateKey();
+    const otherPub = await getOtherUserPublicKey(peerUserId);
+    const sharedBits = await crypto.subtle.deriveBits(
+      { name: "ECDH", public: otherPub },
+      myPriv,
+      256
+    );
+
+    const hkdfKey = await crypto.subtle.importKey(
+      "raw",
+      sharedBits,
+      "HKDF",
+      false,
+      ["deriveKey"]
+    );
+
+    return await crypto.subtle.deriveKey(
+      {
+        name: "HKDF",
+        hash: "SHA-256",
+        salt: saltBytes,
+        info: hkdfInfoForPair(MY_USER_ID, peerUserId)
+      },
+      hkdfKey,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  async function encryptForUser(otherUserId, plaintext) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const aesKey = await deriveAesKeyForMessage(otherUserId, salt);
+    const ctBuf = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      aesKey,
+      utf8ToBytes(plaintext)
+    );
+    const ct = new Uint8Array(ctBuf);
+    return {
+      v: 1,
+      alg: "ECDH-P256/HKDF-SHA256/AES-256-GCM",
+      iv: b64encode(iv),
+      salt: b64encode(salt),
+      ct: b64encode(ct)
+    };
+  }
+
+  async function decryptFromUser(senderUserId, payload) {
+    const iv = b64decode(payload.iv);
+    const salt = b64decode(payload.salt);
+    const aesKey = await deriveAesKeyForMessage(senderUserId, salt);
+    const ct = b64decode(payload.ct);
+    const ptBuf = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      aesKey,
+      ct
+    );
+    return bytesToUtf8(new Uint8Array(ptBuf));
+  }
+  
+  async function selectUser(userId, username) {
+    currentTargetId = userId;
+    currentTargetName = username;
+    document.getElementById('chatHeader').innerText = `Encrypted Channel: ${username}`;
+    document.getElementById('messageInput').disabled = false;
+    document.getElementById('sendBtn').disabled = false;
+    await ensureMyKeypairAndRegister();
+    await refreshFingerprintPanel(userId);
+    await fetchMessages();
+    // Use an interval ID so we don't pile up intervals
+    if(window.chatInterval) clearInterval(window.chatInterval);
+    window.chatInterval = setInterval(fetchMessages, 5000);
+    if(window.typingInterval) clearInterval(window.typingInterval);
+    window.typingInterval = setInterval(checkTyping, 2000);
+  }
+
+  function getMode() {
+    return document.getElementById('securityToggle').value;
+  }
+
+  document.getElementById('securityToggle').addEventListener('change', function(e) {
+    const badge = document.getElementById('encryptionBadge');
+    badge.className = 'px-2 py-1 text-xs font-bold rounded border transition-colors duration-300';
+    
+    if (e.target.value === 'secure') {
+      badge.classList.add('bg-green-100', 'dark:bg-green-900', 'text-green-800', 'dark:text-green-300', 'border-green-400', 'dark:border-green-500');
+      badge.innerText = "AES-256 ENCRYPTED";
+    } else {
+      badge.classList.add('bg-red-100', 'dark:bg-red-900', 'text-red-800', 'dark:text-red-300', 'border-red-400', 'dark:border-red-500');
+      badge.innerText = "PLAINTEXT VULNERABLE";
+    }
+  });
+  
+  document.getElementById('securityToggle').dispatchEvent(new Event('change'));
+
+  // Typing indicator: send typing status on input
+  document.getElementById('messageInput').addEventListener('input', function() {
+    if (!currentTargetId) return;
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(function() {
+      fetch('/api/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body: JSON.stringify({ receiver_id: currentTargetId })
+      });
+    }, 300);
+    // Send immediately for first keystroke
+    fetch('/api/typing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+      body: JSON.stringify({ receiver_id: currentTargetId })
+    });
+  });
+
+  async function checkTyping() {
+    if (!currentTargetId) return;
+    try {
+      const resp = await fetch(`/api/typing/${currentTargetId}`);
+      const data = await resp.json();
+      const indicator = document.getElementById('typingIndicator');
+      const typingText = document.getElementById('typingText');
+      if (data.typing) {
+        typingText.innerText = `${currentTargetName} is typing...`;
+        indicator.classList.remove('hidden');
+      } else {
+        indicator.classList.add('hidden');
+      }
+    } catch(e) {}
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const rawText = input.value.trim();
+    if (!rawText || !currentTargetId) return;
+
+    const mode = getMode();
+    let payloadContent = rawText;
+    let isEncrypted = 0;
+
+    if (mode === 'secure') {
+      try {
+        const encryptedPayload = await encryptForUser(currentTargetId, rawText);
+        payloadContent = JSON.stringify(encryptedPayload);
+        isEncrypted = 1;
+      } catch (e) {
+        alert("Secure send failed: recipient has no public key yet. Ask them to open Secure Chat once, then try again.");
+        return;
+      }
+      
+      // Update Inspector UI
+      document.getElementById('cryptoInspector').classList.remove('hidden');
+      document.getElementById('debugPlain').innerText = rawText;
+      document.getElementById('debugCipher').innerText = payloadContent;
+    } else {
+      document.getElementById('cryptoInspector').classList.add('hidden');
+    }
+
+    await fetch('/api/messages/send', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': CSRF_TOKEN
+      },
+      body: JSON.stringify({
+        receiver_id: currentTargetId,
+        content: payloadContent,
+        is_encrypted: isEncrypted
+      })
+    });
+
+    input.value = '';
+    fetchMessages();
+  }
+
+  async function fetchMessages() {
+    if (!currentTargetId) return;
+    const response = await fetch(`/api/messages/${currentTargetId}`);
+    const data = await response.json();
+    
+    const container = document.getElementById('messagesArea');
+    container.innerHTML = '';
+    const mode = getMode();
+
+    for (const msg of data.messages) {
+      let displayText = msg.content;
+      let securityWarning = '';
+
+      if (msg.is_encrypted && mode === 'secure') {
+        try {
+          const payload = JSON.parse(msg.content);
+          // For inbound messages, the peer is the sender.
+          // For outbound messages (sent by me), the peer is the current target (recipient).
+          const peerId = (Number(msg.sender_id) === Number(MY_USER_ID)) ? Number(currentTargetId) : Number(msg.sender_id);
+          displayText = await decryptFromUser(peerId, payload);
+        } catch(e) {
+          displayText = "[Decryption Failed]";
+        }
+      } else if (msg.is_encrypted && mode === 'vulnerable') {
+         securityWarning = '<div class="text-[10px] text-green-600 dark:text-green-400 mt-1">Cannot read: Ciphertext</div>';
+      } else if (!msg.is_encrypted) {
+         securityWarning = '<div class="text-[10px] text-red-600 dark:text-red-400 mt-1">Warning: Sent in Plaintext!</div>';
+      }
+
+      const isMine = msg.sender === MY_USERNAME;
+      const alignClass = isMine ? 'justify-end' : 'justify-start';
+      const bubbleClass = isMine ? 'bg-primary text-white dark:text-gray-900' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100';
+
+      // Read receipt ticks for sent messages
+      let readReceipt = '';
+      if (isMine) {
+        if (msg.read_at) {
+          readReceipt = '<span class="text-[10px] opacity-70 ml-1" title="Read">✓✓</span>';
+        } else {
+          readReceipt = '<span class="text-[10px] opacity-40 ml-1" title="Delivered">✓</span>';
+        }
+      }
+
+      container.innerHTML += `
+        <div class="flex ${alignClass} mb-4">
+          <div class="max-w-[70%] p-3 rounded-lg ${bubbleClass} shadow-sm break-words text-sm transition-colors duration-300">
+            ${displayText}
+            ${securityWarning}
+            <div class="flex items-center justify-end mt-1 gap-1">
+              <span class="text-[9px] opacity-50">${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+              ${readReceipt}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // Eagerly ensure the sender has a keypair ready even before selecting a user.
+  (async function bootE2EE() {
+    try {
+      await ensureMyKeypairAndRegister();
+    } catch (e) {
+      // If WebCrypto isn't available, "secure" mode will fail; user can still demo vulnerable mode.
+      console.warn(e);
+    }
+  })();
+</script>
+{% endblock %}

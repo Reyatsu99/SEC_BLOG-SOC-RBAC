@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex flex-col items-center justify-center py-20 text-center">
+  <div class="relative mb-8">
+    <div class="text-9xl font-black text-gray-200 dark:text-gray-800 select-none transition-colors duration-300">{{ error_code }}</div>
+    <div class="absolute inset-0 flex items-center justify-center">
+      <svg class="w-20 h-20 text-danger opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {% if error_code == 403 %}
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        {% elif error_code == 404 %}
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        {% else %}
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+        {% endif %}
+      </svg>
+    </div>
+  </div>
+
+  <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">{{ error_title }}</h1>
+  <p class="text-gray-500 dark:text-gray-400 max-w-md mb-8">{{ error_message }}</p>
+
+  <div class="flex space-x-4">
+    <a href="{{ url_for('list_posts') }}" class="bg-primary text-white dark:text-gray-900 font-bold px-6 py-2 rounded hover:bg-green-500 dark:hover:bg-green-400 transition">Return to Base</a>
+    <button onclick="history.back()" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold px-6 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Go Back</button>
+  </div>
+
+  <div class="mt-12 text-xs text-gray-400 dark:text-gray-600 font-mono">
+    <span>ERROR::{{ error_code }} // {{ error_title | upper }} // INCIDENT_LOGGED</span>
+  </div>
+</div>
+{% endblock %}

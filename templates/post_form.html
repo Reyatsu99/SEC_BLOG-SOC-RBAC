@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 shadow-md dark:shadow-lg transition-colors duration-300">
+  <h1 class="text-2xl font-bold text-primary mb-6 border-b border-gray-200 dark:border-gray-700 pb-2 transition-colors duration-300">
+    {% if post %}Edit_Entry::{{ post.id }}{% else %}Initialize_New_Entry{% endif %}
+  </h1>
+  <form method="post" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="md:col-span-2">
+        <label class="block text-sm text-gray-700 dark:text-gray-400 mb-1">Title</label>
+        <input name="title" maxlength="150" value="{{ post.title if post else '' }}" required class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-2 text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors duration-300">
+      </div>
+      <div class="md:col-span-1">
+        <label class="block text-sm text-gray-700 dark:text-gray-400 mb-1">Visibility Level</label>
+        <select name="visibility" id="visibilitySelect" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-2 text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors duration-300" onchange="toggleAccessList()">
+          <option value="public" {% if post and post.visibility == 'public' %}selected{% endif %}>Public (Unrestricted)</option>
+          <option value="private" {% if post and post.visibility == 'private' %}selected{% endif %}>Private (Restricted)</option>
+        </select>
+        
+        <div id="accessControl" class="mt-4 {% if not post or post.visibility == 'public' %}hidden{% endif %}">
+          <label class="block text-sm text-primary mb-2">Grant Access To:</label>
+          <div class="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-3 max-h-32 overflow-y-auto space-y-2 transition-colors duration-300">
+            {% for u in users %}
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" name="allowed_users" value="{{ u.id }}" {% if u.id in allowed_user_ids %}checked{% endif %} class="rounded bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-primary focus:ring-primary">
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ u.username }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+<script>
+function toggleAccessList() {
+  const vis = document.getElementById('visibilitySelect').value;
+  const accessDiv = document.getElementById('accessControl');
+  if (vis === 'private') {
+    accessDiv.classList.remove('hidden');
+  } else {
+    accessDiv.classList.add('hidden');
+  }
+}
+</script>
+    </div>
+
+    <div>
+      <div class="flex justify-between mb-1">
+        <label class="block text-sm text-gray-700 dark:text-gray-400">Content Payload</label>
+        <span class="text-xs text-primary">Content will be SHA-256 Hashed and RSA Signed on save</span>
+      </div>
+      <textarea name="content" rows="14" maxlength="20000" required class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-4 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-primary transition-colors duration-300">{{ post.content if post else '' }}</textarea>
+    </div>
+
+    <button type="submit" class="bg-primary text-white dark:text-gray-900 font-bold px-6 py-2 rounded hover:bg-green-500 dark:hover:bg-green-400 transition">Save & Sign Payload</button>
+  </form>
+</div>
+{% endblock %}
