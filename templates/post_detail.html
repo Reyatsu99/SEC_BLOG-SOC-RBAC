@@ -8,7 +8,7 @@
       <span>|</span>
       <span class="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-xs transition-colors duration-300">{{ post.visibility | upper }}</span>
       <span>|</span>
-      <span>Updated: {{ post.updated_at }}</span>
+      <span title="{{ post.updated_at }}">Updated: {{ post.updated_at | humantime }}</span>
     </div>
   </div>
 

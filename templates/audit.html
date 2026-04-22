@@ -115,7 +115,7 @@
         {% set is_info = not is_danger and not is_warn %}
         <tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors duration-200 log-row
           {% if is_danger %}bg-red-50/50 dark:bg-red-900/10{% endif %}">
-          <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono">{{ log.created_at }}</td>
+          <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono" title="{{ log.created_at }}">{{ log.created_at | humantime }}</td>
           <td class="px-4 py-3 font-bold {% if log.actor %}text-gray-900 dark:text-gray-200{% else %}text-danger{% endif %}">{{ log.actor or 'SYSTEM' }}</td>
           <td class="px-4 py-3">
             <span class="font-mono text-xs px-2 py-1 rounded-full

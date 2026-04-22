@@ -198,7 +198,7 @@ def create_app() -> Flask:
         if role == "admin":
             posts = db.execute(
                 """
-                SELECT p.id, p.title, p.visibility, p.created_at, p.updated_at, u.username AS author
+                SELECT p.id, p.title, p.content, p.visibility, p.created_at, p.updated_at, u.username AS author
                 FROM posts p
                 JOIN users u ON u.id = p.author_id
                 ORDER BY p.updated_at DESC
@@ -207,7 +207,7 @@ def create_app() -> Flask:
         else:
             posts = db.execute(
                 """
-                SELECT DISTINCT p.id, p.title, p.visibility, p.created_at, p.updated_at, u.username AS author
+                SELECT DISTINCT p.id, p.title, p.content, p.visibility, p.created_at, p.updated_at, u.username AS author
                 FROM posts p
                 JOIN users u ON u.id = p.author_id
                 LEFT JOIN post_access pa ON pa.post_id = p.id
@@ -516,6 +516,47 @@ def create_app() -> Flask:
             },
             "csrf_token": session.get("csrf_token"),
         }
+
+    @app.template_filter("humantime")
+    def humantime_filter(value: str) -> str:
+        """Convert ISO timestamp to human-readable format."""
+        if not value:
+            return ""
+        try:
+            dt = datetime.fromisoformat(value)
+            now = datetime.now(timezone.utc)
+            diff = now - dt
+            seconds = int(diff.total_seconds())
+            if seconds < 60:
+                return "just now"
+            elif seconds < 3600:
+                mins = seconds // 60
+                return f"{mins}m ago"
+            elif seconds < 86400:
+                hours = seconds // 3600
+                return f"{hours}h ago"
+            elif seconds < 604800:
+                days = seconds // 86400
+                return f"{days}d ago"
+            else:
+                return dt.strftime("%b %d, %Y %I:%M %p")
+        except (ValueError, TypeError):
+            return str(value)
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template("error.html", error_code=403, error_title="Access Denied",
+                               error_message="You don't have permission to access this resource. This incident has been logged."), 403
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template("error.html", error_code=404, error_title="Not Found",
+                               error_message="The requested resource could not be located on this server."), 404
+
+    @app.errorhandler(400)
+    def bad_request(e):
+        return render_template("error.html", error_code=400, error_title="Bad Request",
+                               error_message="The server could not process your request. Possible CSRF token violation."), 400
 
     init_db()
     return app

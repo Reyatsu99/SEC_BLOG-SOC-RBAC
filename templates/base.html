@@ -29,6 +29,12 @@
       }
     }
   </script>
+  <style>
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+    .flash-msg { animation: slideDown 0.3s ease-out; }
+    .flash-msg.dismissing { animation: fadeOut 0.4s ease-in forwards; }
+  </style>
 </head>
 <body class="min-h-screen flex flex-col font-mono bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
   
@@ -36,19 +42,23 @@
     <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
       <div class="flex items-center space-x-6">
         <a href="{{ url_for('list_posts') }}" class="text-xl font-bold text-primary tracking-wider">SEC_BLOG//</a>
-        {% if current_user.id %}
-          <a href="{{ url_for('list_posts') }}" class="hover:text-primary transition {% if request.endpoint and 'post' in request.endpoint and request.endpoint != 'new_post' %}border-b-2 border-primary text-primary{% endif %}">Posts</a>
-          
-          <a href="{{ url_for('chat') }}" class="hover:text-primary transition {% if request.endpoint == 'chat' %}border-b-2 border-primary text-primary{% endif %}">Secure Chat</a>
-          
-          {% if current_user.role in ['user', 'admin'] %}
-            <a href="{{ url_for('new_post') }}" class="hover:text-primary transition {% if request.endpoint == 'new_post' %}border-b-2 border-primary text-primary{% endif %}">Write</a>
+        
+        <!-- Desktop Nav Links -->
+        <nav class="hidden md:flex items-center space-x-6">
+          {% if current_user.id %}
+            <a href="{{ url_for('list_posts') }}" class="hover:text-primary transition {% if request.endpoint and 'post' in request.endpoint and request.endpoint != 'new_post' %}border-b-2 border-primary text-primary{% endif %}">Posts</a>
+            
+            <a href="{{ url_for('chat') }}" class="hover:text-primary transition {% if request.endpoint == 'chat' %}border-b-2 border-primary text-primary{% endif %}">Secure Chat</a>
+            
+            {% if current_user.role in ['user', 'admin'] %}
+              <a href="{{ url_for('new_post') }}" class="hover:text-primary transition {% if request.endpoint == 'new_post' %}border-b-2 border-primary text-primary{% endif %}">Write</a>
+            {% endif %}
+            
+            {% if current_user.role == 'admin' %}
+              <a href="{{ url_for('audit_log') }}" class="text-danger hover:text-red-400 transition {% if request.endpoint == 'audit_log' %}border-b-2 border-danger{% endif %}">Audit Logs</a>
+            {% endif %}
           {% endif %}
-          
-          {% if current_user.role == 'admin' %}
-            <a href="{{ url_for('audit_log') }}" class="text-danger hover:text-red-400 transition {% if request.endpoint == 'audit_log' %}border-b-2 border-danger{% endif %}">Audit Logs</a>
-          {% endif %}
-        {% endif %}
+        </nav>
       </div>
 
       <div class="flex items-center space-x-4">
@@ -59,7 +69,7 @@
         </button>
 
         {% if current_user.id %}
-          <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded border border-gray-300 dark:border-gray-700">
+          <div class="hidden md:flex items-center space-x-2 bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded border border-gray-300 dark:border-gray-700">
             <span class="text-xs text-gray-600 dark:text-gray-400">Mode:</span>
             <select id="securityToggle" class="bg-transparent text-sm font-bold text-primary focus:outline-none">
               <option value="secure" class="bg-white dark:bg-gray-800 text-primary">SECURE (E2EE)</option>
@@ -67,25 +77,60 @@
             </select>
           </div>
 
-          <span class="text-sm text-gray-600 dark:text-gray-400">[{{ current_user.username }}]</span>
-          <form method="post" action="{{ url_for('logout') }}" class="inline">
+          <span class="hidden md:inline text-sm text-gray-600 dark:text-gray-400">[{{ current_user.username }}]</span>
+          <form method="post" action="{{ url_for('logout') }}" class="hidden md:inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 py-1 rounded transition">Logout</button>
           </form>
+
+          <!-- Mobile Hamburger Button -->
+          <button id="mobileMenuBtn" class="md:hidden p-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition" onclick="document.getElementById('mobileMenu').classList.toggle('hidden')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </button>
         {% else %}
           <a href="{{ url_for('login') }}" class="text-gray-800 dark:text-gray-200 hover:text-primary dark:hover:text-primary">Login</a>
           <a href="{{ url_for('register') }}" class="bg-primary text-white dark:text-gray-900 px-4 py-2 rounded font-bold hover:bg-green-500 dark:hover:bg-green-400">Register</a>
         {% endif %}
       </div>
     </div>
+
+    <!-- Mobile Menu Dropdown -->
+    {% if current_user.id %}
+    <div id="mobileMenu" class="hidden md:hidden border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3 space-y-3 transition-colors duration-300">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-bold text-primary">[{{ current_user.username }}]</span>
+        <span class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">{{ current_user.role | upper }}</span>
+      </div>
+      <a href="{{ url_for('list_posts') }}" class="block py-2 px-3 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">📋 Posts</a>
+      <a href="{{ url_for('chat') }}" class="block py-2 px-3 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">💬 Secure Chat</a>
+      {% if current_user.role in ['user', 'admin'] %}
+        <a href="{{ url_for('new_post') }}" class="block py-2 px-3 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">✏️ Write New Post</a>
+      {% endif %}
+      {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('audit_log') }}" class="block py-2 px-3 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/20 transition">🛡️ Audit Logs</a>
+      {% endif %}
+      <div class="flex items-center space-x-2 py-2 px-3">
+        <span class="text-xs text-gray-600 dark:text-gray-400">Mode:</span>
+        <select id="securityToggleMobile" class="bg-transparent text-sm font-bold text-primary focus:outline-none" onchange="document.getElementById('securityToggle').value = this.value; document.getElementById('securityToggle').dispatchEvent(new Event('change'));">
+          <option value="secure" class="bg-white dark:bg-gray-800">SECURE (E2EE)</option>
+          <option value="vulnerable" class="bg-white dark:bg-gray-800">VULNERABLE</option>
+        </select>
+      </div>
+      <form method="post" action="{{ url_for('logout') }}" class="pt-2 border-t border-gray-200 dark:border-gray-700">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="w-full text-left py-2 px-3 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition font-bold">⏻ Logout</button>
+      </form>
+    </div>
+    {% endif %}
   </header>
 
   <div class="max-w-6xl mx-auto px-4 mt-4 w-full">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="p-4 mb-4 rounded border {{ 'bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-500 text-green-800 dark:text-green-200' if category == 'success' else 'bg-red-100 dark:bg-red-900 border-red-400 dark:border-red-500 text-red-800 dark:text-red-200' }}">
-            {{ message }}
+          <div class="flash-msg p-4 mb-3 rounded border flex justify-between items-center {{ 'bg-green-50 dark:bg-green-900/30 border-green-400 dark:border-green-600 text-green-800 dark:text-green-200' if category == 'success' else 'bg-red-50 dark:bg-red-900/30 border-red-400 dark:border-red-600 text-red-800 dark:text-red-200' }}">
+            <span>{{ message }}</span>
+            <button onclick="dismissFlash(this)" class="ml-4 opacity-60 hover:opacity-100 transition text-lg leading-none">&times;</button>
           </div>
         {% endfor %}
       {% endif %}
@@ -95,5 +140,40 @@
   <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-grow">
     {% block content %}{% endblock %}
   </main>
+
+  <!-- Footer -->
+  <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto transition-colors duration-300">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
+      <div class="flex items-center space-x-2">
+        <span class="text-primary font-bold">SEC_BLOG//</span>
+        <span>Secure Blogging Platform &mdash; CIA Triad Enforced</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="flex items-center space-x-1">
+          <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          <span>HTTPS</span>
+        </span>
+        <span>|</span>
+        <span>PBKDF2 + SHA-256 + RSA</span>
+        <span>|</span>
+        <span>RBAC Active</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Auto-dismiss flash messages after 4 seconds
+    document.querySelectorAll('.flash-msg').forEach(function(el) {
+      setTimeout(function() { dismissFlash(el.querySelector('button')); }, 4000);
+    });
+    function dismissFlash(btn) {
+      if (!btn) return;
+      var msg = btn.closest('.flash-msg');
+      if (msg) {
+        msg.classList.add('dismissing');
+        setTimeout(function() { msg.remove(); }, 400);
+      }
+    }
+  </script>
 </body>
 </html>
