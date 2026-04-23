@@ -35,6 +35,36 @@ def create_app() -> Flask:
     app.config["SESSION_IDLE_MINUTES"] = session_idle_minutes
     app.config["SESSION_ABSOLUTE_MINUTES"] = session_absolute_minutes
 
+    # --- IN-MEMORY SECURITY CACHE (For DDoS/Availability) ---
+    # In a production app, use Redis. For this demo, we use global dicts.
+    IP_REQUEST_LOG = {}  # {ip: [timestamp1, timestamp2, ...]}
+    MALICIOUS_IPS = {}   # {ip: expiry_timestamp}
+
+    @app.before_request
+    def security_middleware() -> None:
+        ip = request.remote_addr or "unknown"
+        now = datetime.now(timezone.utc)
+
+        # 1. Check Global Blocklist (Fastest Rejection)
+        if ip in MALICIOUS_IPS:
+            if now < MALICIOUS_IPS[ip]:
+                abort(403, "Your IP is temporarily blocked due to suspicious activity.")
+            else:
+                del MALICIOUS_IPS[ip]
+
+        # 2. Rate Limiting (Prevent DDoS)
+        # Allow max 100 requests per minute per IP
+        timestamps = IP_REQUEST_LOG.get(ip, [])
+        one_minute_ago = now - timedelta(minutes=1)
+        timestamps = [ts for ts in timestamps if ts > one_minute_ago]
+        timestamps.append(now)
+        IP_REQUEST_LOG[ip] = timestamps
+
+        if len(timestamps) > 100:
+            MALICIOUS_IPS[ip] = now + timedelta(minutes=5)
+            log_event(None, "availability.dos_prevention", "ip", None, f"IP={ip} rate exceeded")
+            abort(429, "Too many requests. Please wait 5 minutes.")
+
     @app.before_request
     def before_request() -> None:
         if app.config["ENFORCE_HTTPS"]:
@@ -136,8 +166,14 @@ def create_app() -> Flask:
 
             if challenge_required:
                 if not validate_login_challenge(request.form.get("challenge_answer")):
-                    ensure_login_challenge(force=True)
                     record_failed_attempt(username, ip)
+                    # If they fail CAPTCHA 3 times in a row, block the IP in memory immediately
+                    failures, _ = count_recent_failures(ip, username)
+                    if failures >= 3:
+                        MALICIOUS_IPS[ip] = datetime.now(timezone.utc) + timedelta(minutes=15)
+                        log_event(None, "availability.lockout", "ip", None, f"IP={ip} CAPTCHA abuse")
+
+                    ensure_login_challenge(force=True)
                     flash("Challenge verification failed.", "error")
                     return render_template("login.html", challenge_question=session.get("login_challenge_question"))
 
@@ -691,6 +727,7 @@ def create_app() -> Flask:
 
     @app.errorhandler(403)
     def forbidden(e):
+        log_event(session.get("user_id"), "security.access_denied", "resource", None, f"URL={request.path}")
         return render_template("error.html", error_code=403, error_title="Access Denied",
                                error_message="You don't have permission to access this resource. This incident has been logged."), 403
 
@@ -701,6 +738,7 @@ def create_app() -> Flask:
 
     @app.errorhandler(400)
     def bad_request(e):
+        log_event(session.get("user_id"), "security.bad_request", "resource", None, f"URL={request.path}")
         return render_template("error.html", error_code=400, error_title="Bad Request",
                                error_message="The server could not process your request. Possible CSRF token violation."), 400
 

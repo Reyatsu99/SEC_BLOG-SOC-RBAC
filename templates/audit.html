@@ -102,7 +102,6 @@
           <th scope="col" class="px-4 py-3">Timestamp</th>
           <th scope="col" class="px-4 py-3">Actor</th>
           <th scope="col" class="px-4 py-3">Event</th>
-          <th scope="col" class="px-4 py-3">Target</th>
           <th scope="col" class="px-4 py-3">Details</th>
           <th scope="col" class="px-4 py-3">Source IP</th>
           <th scope="col" class="px-4 py-3">Severity</th>
@@ -125,7 +124,6 @@
               {{ log.action }}
             </span>
           </td>
-          <td class="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ log.target_type }} <span class="text-gray-400 dark:text-gray-500">#{{ log.target_id }}</span></td>
           <td class="px-4 py-3 max-w-xs truncate text-gray-600 dark:text-gray-400" title="{{ log.details }}">{{ log.details }}</td>
           <td class="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{{ log.ip }}</td>
           <td class="px-4 py-3">
