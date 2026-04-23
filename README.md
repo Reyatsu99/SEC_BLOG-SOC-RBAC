@@ -1,5 +1,7 @@
 # Secure Blogging Platform (CIA Triad)
 
+![System Architecture](system_architecture.jpeg)
+
 This project implements the proposal requirements for a secure blogging platform with CIA triad enforcement, RBAC, and auditability.
 
 ## Features

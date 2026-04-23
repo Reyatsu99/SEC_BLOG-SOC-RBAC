@@ -447,26 +447,56 @@ def create_app() -> Flask:
     @login_required
     def chat() -> str:
         db = get_db()
-        users = db.execute("SELECT id, username FROM users WHERE id != ?", (session["user_id"],)).fetchall()
-        
-        # Pre-generate conversation keys for each user
-        user_list = []
-        for u in users:
-            pair = sorted([int(session["user_id"]), int(u["id"])])
-            pair_str = f"{pair[0]}:{pair[1]}"
-            chat_key = hmac.new(
-                app.config["SECRET_KEY"].encode(), 
-                pair_str.encode(), 
-                hashlib.sha256
-            ).hexdigest()
-            
-            user_list.append({
-                "id": u["id"],
-                "username": u["username"],
-                "chat_key": chat_key
-            })
-            
-        return render_template("chat.html", users=user_list)
+        users = db.execute(
+            "SELECT id, username FROM users WHERE id != ? ORDER BY username ASC",
+            (session["user_id"],),
+        ).fetchall()
+        return render_template("chat.html", users=users)
+
+    @app.route("/api/keys", methods=["POST"])
+    @login_required
+    def api_upsert_public_key():
+        """
+        Store the user's E2EE public key (client-generated).
+        Private key must never be uploaded to the server.
+        """
+        validate_csrf_or_400()
+        data = request.get_json() or {}
+        public_key_jwk = data.get("public_key_jwk")
+        key_type = (data.get("key_type") or "").strip()
+        if not public_key_jwk or key_type not in {"ecdh-p256"}:
+            return {"error": "Invalid key payload"}, 400
+
+        db = get_db()
+        db.execute(
+            """
+            INSERT INTO user_public_keys (user_id, key_type, public_key_jwk, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id, key_type) DO UPDATE SET
+              public_key_jwk = excluded.public_key_jwk,
+              updated_at = excluded.updated_at
+            """,
+            (session["user_id"], key_type, public_key_jwk, now_utc()),
+        )
+        db.commit()
+        log_event(session["user_id"], "chat.public_key_upsert", "user", session["user_id"], f"key_type={key_type}")
+        return {"status": "ok"}
+
+    @app.route("/api/keys/<int:user_id>")
+    @login_required
+    def api_get_public_key(user_id: int):
+        db = get_db()
+        row = db.execute(
+            """
+            SELECT user_id, key_type, public_key_jwk, updated_at
+            FROM user_public_keys
+            WHERE user_id = ? AND key_type = 'ecdh-p256'
+            """,
+            (user_id,),
+        ).fetchone()
+        if not row:
+            return {"error": "No public key registered"}, 404
+        return dict(row)
 
     @app.route("/api/messages/send", methods=["POST"])
     @login_required
@@ -494,7 +524,7 @@ def create_app() -> Flask:
         db = get_db()
         messages = db.execute(
             """
-            SELECT m.id, m.content, m.is_encrypted, m.created_at, m.read_at, u_sender.username as sender
+            SELECT m.id, m.sender_id, m.content, m.is_encrypted, m.created_at, m.read_at, u_sender.username as sender
             FROM messages m
             JOIN users u_sender ON m.sender_id = u_sender.id
             WHERE (m.sender_id = ? AND m.receiver_id = ?) 
@@ -754,6 +784,14 @@ def init_db() -> None:
             content TEXT NOT NULL,
             is_encrypted INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS user_public_keys (
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            key_type TEXT NOT NULL,
+            public_key_jwk TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, key_type)
         );
 
         CREATE TABLE IF NOT EXISTS post_access (
