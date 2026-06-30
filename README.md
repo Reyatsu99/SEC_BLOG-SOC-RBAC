@@ -86,7 +86,7 @@ python app.py
 - `secure_blog.db` - SQLite database (auto-created).
 
 ## Sharing with Teammates (Zip Instructions)
-
+ 
 When sharing this project, zip the following:
 - `app.py`
 - `requirements.txt`
